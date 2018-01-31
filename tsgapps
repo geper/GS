@@ -298,6 +298,310 @@ function TwitterUserTimeLine() {
   var apiUrl = "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=aelfblockchain&count=3&include_rts=false&max_id="+props.getProperty("MAX_TWITTER_ID_USER_TIMELINE");
   //count: колчество твитов
   //max_id=954298187770036224 ид твитта до которого будет выборка
+
+/*             
+                             aelfblockchain_1
+
+Twitter Bot  by Amit Agarwal 
+ищет берет твитты из канала и лайкаетили ретвититпри старте создается триггер каждые 10 минут
+
+токена за твиты полный список заданий тут
+https://candy.aelf.io/app/main/userDashboard
+ berder  aelfblockchain candy programm
+
+*/
+ 
+TWITTER_SEARCH_PHRASE   = "from:fegeret";
+//TWITTER_SEARCH_PHRASE   = "from:aelfblockchain";
+
+
+function Start() {
+ 
+  var props = PropertiesService.getScriptProperties();
+
+//aelfblockchain_1 app   
+  props.setProperties({
+    TWITTER_CONSUMER_KEY: "5kRn58t6He02ZJuBKm3JY4I1s",
+    TWITTER_CONSUMER_SECRET: "IPC22bvDki6m15WRThA58TuWHZ7RLGPn08SHZlnP3RBK7mHw1K",
+    TWITTER_ACCESS_TOKEN: "740509343959912449-tMx4js9xIzP81PMUgATtl0c6t9qEbnp",
+    TWITTER_ACCESS_SECRET: "Wbgf4o732ot8n31EgfmvEwyCWpyVwDL6srZ6rKJziqcsP",
+    MAX_TWITTER_ID: "949180719439360000" ,
+//    SINCE_TWITTER_ID: "920944835216932865"
+    SINCE_TWITTER_ID: 0,
+    //последний ретвитнуй твит оне не будет ретвитнут
+    MAX_TWITTER_ID_USER_TIMELINE:"949180719439360000",
+    COUNT_EXCUTION:0
+  });
+  
+  // Test Twitter authorization
+ // var twit = new Twitterlib.OAuth(props);
+  
+//  if (!twit.favorite("740874661534130178")) {
+ //   throw new Error("Please check your Twitter access tokens");
+//    return;
+//  }
+  // Delete exiting triggers, if any
+  
+  Logger.log("del triggers");
+  var triggers = ScriptApp.getProjectTriggers();
+ 
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+ 
+  
+
+  
+  // Setup a time-based trigger for the Bot to fetch and process incoming Tweets 
+  // every minute. If your Google Script is running out of quota, change the
+  // time to 5 or 10 minutes though the bot won't offer real-time answers then.
+  
+  //favorit reply retwee only last week
+//  Logger.log("create triggers labnol_twitterBot_retweet");
+//  ScriptApp.newTrigger("labnol_twitterBot_retweet")
+//  //ScriptApp.newTrigger("labnol_twitterBot")
+//    .timeBased()
+//    .everyMinutes(5)
+//    .create();
+  
+  //post twitt use walfram
+    Logger.log("create triggers labnol_twitterBot");
+    ScriptApp.newTrigger("labnol_twitterBot")
+    .timeBased()
+    .everyMinutes(10)
+    .create();
+  
+ //favorite reply and retweet
+  Logger.log("create triggers TwitterUserTimeLine");
+    ScriptApp.newTrigger("TwitterUserTimeLine")
+    .timeBased()
+    .everyMinutes(5)
+    .create();  
+  
+    //********************single run************
+  
+ labnol_twitterBot()
+ TwitterUserTimeLine()
+ 
+  //********************single run************
+
+}
+function labnol_twitterBot_retweet() {
+  /*
+  ищет в поиске твиты старше твиттер max_id и новее since_id
+  
+  Поиск только последние неделю 
+  https://developer.twitter.com/en/docs/tweets/search/api-reference/get-search-tweets.html
+  */
+   Logger.log("run");
+  
+  try {
+    
+    var props = PropertiesService.getScriptProperties(),
+        twit = new Twitterlib.OAuth(props);
+    
+    
+    if (twit.hasAccess()) {
+      //search twits 
+      var tweets = twit.fetchTweets(
+        "from:aelfblockchain", 
+        function(tweet) {
+        if(tweet){
+          // Skip tweets that contain sensitive content
+          if (!tweet.possibly_sensitive) {
+                   //var question = tweet.text.toLowerCase(),
+//              var question = tweet.text.toLowerCase().replace("@" + "fegeret", "").trim(),
+              //answer = askWolframAlpha_(question);
+            //if (answer) {
+              return {
+                //answer: "@" + tweet.user.screen_name + " " + answer,
+                id_str: tweet.id_str
+              };
+            //}
+          }
+        }}, {
+          multi: true,
+          //lang: "en", // Process only English tweets
+          count: 3,   // Process 5 tweets in a batch
+          //since_id: props.getProperty("SINCE_TWITTER_ID")
+          //since_id: props.getProperty("SINCE_TWITTER_ID"),
+          max_id: props.getProperty("MAX_TWITTER_ID"),
+          result_type: "recent" 
+        });
+      
+       if (tweets.length) {
+      
+          //MAX_TWITTER_ID  самая старый твит из трех
+          props.setProperty("MAX_TWITTER_ID", tweets[2].id_str);
+        
+          //ретвит
+          for (var i = tweets.length - 1; i > 0; i--) {
+            
+            twit.retweet(tweets[i]);
+
+            }
+              
+            /* Wait between 10 seconds and 1 minute */
+            Utilities.sleep(Math.floor(Math.random()*50000) + 10000);
+            
+            //лайк
+          for (var i = tweets.length - 1; i > 0; i--) {
+            
+            twit.favorite(tweets[i]);
+            
+            }
+              
+            /* Wait between 10 seconds and 1 minute */
+            Utilities.sleep(Math.floor(Math.random()*50000) + 10000);
+            //репли ответ
+            for (var i = tweets.length - 1; i > 0; i--) {
+            
+  
+            // The bot replies with an answer
+            //twit.sendTweet(tweets[i].answer.substr(0,100)+" @aelfblockchain", {
+            twit.sendTweet(Math.random()+"reply @aelfblockchain", {
+              in_reply_to_status_id: tweets[i].id_str
+            }
+            
+            );          
+          
+        }
+      
+      }
+    }
+    
+  } catch (f) {
+    Logger.log("Error: " + f.toString());
+  }
+  
+}
+ 
+/* For help, email amit@labnol.org or visit http://ctrlq.org */
+ 
+function labnol_twitterBot() {
+  /*
+ ищет кто отправил сообщение to:" + TWITTER_HANDLE
+ и этот вопрос отправляет в ап волврам
+  */
+ 
+  try {
+ 
+    var props = PropertiesService.getScriptProperties(),
+      twit = new Twitterlib.OAuth(props);
+ 
+    // Are the Twitter access tokens are valid?
+    if (twit.hasAccess()) {
+    //TWITTER_HANDLE _>aelfblockchain candy programm 
+    //
+ 
+      //var tweets = twit.fetchTweets("to:" + TWITTER_HANDLE,
+      var tweets = twit.fetchTweets("to:" + "aelfblockchain",
+        function(tweet) {
+          // Ignore tweets that are sensitive (NSFW content)
+          if (!tweet.possibly_sensitive) {
+            var question = tweet.text.toLowerCase().replace("@" + "aelfblockchain", "").trim(),
+            //var question = tweet.text.toLowerCase().replace("@" + TWITTER_HANDLE, "").trim(),
+              answer = askWolframAlpha_(question);
+            if (answer) {
+              return {
+                answer: "@" + tweet.user.screen_name + " " + answer,
+                id_str: tweet.id_str
+              };
+            }
+          }
+        }, {
+          multi: true,
+          lang: "en",  // Fetch only English tweets
+          count:5,    // Process 5 tweets in a batch
+          since_id: props.getProperty("SINCE_TWITTER_ID")
+        });
+ 
+      if (tweets.length) {
+ 
+       // The MAX_TWITTER_ID property store the ID of the last tweet answered by the bot
+        props.setProperty("SINCE_TWITTER_ID", tweets[0].id_str);
+ 
+        // Process the tweets in FIFO order
+        for (var i = tweets.length - 1; i >= 0; i--) {
+ 
+          // The bot replies with an answer
+          twit.sendTweet(tweets[i].answer.substr(0,100)+" @aelfblockchain", {
+            in_reply_to_status_id: tweets[i].id_str
+          });
+ 
+            /* Wait between 10 seconds and 1 minute */
+            Utilities.sleep(Math.floor(Math.random()*50000) + 10000);
+        }
+      }
+    }
+ 
+  } catch (f) {
+    // You can also use MailApp to get email notifications of errors.
+    Logger.log("Error: " + f.toString());
+  }
+ 
+}
+ 
+function askWolframAlpha_(q, app) {
+ var WOLFRAM_APP_ID="VX7PP8-J577AU6YVG"
+ 
+  try {
+ 
+    var api = "http://api.wolframalpha.com/v2/query?podindex=2&format=plaintext&appid=" 
+                   + WOLFRAM_APP_ID + "&input=" + encodeURIComponent(q);
+    var response = UrlFetchApp.fetch(api, {
+      muteHttpException: true
+    });
+ 
+    // Parse the XML response
+    if (response.getResponseCode() == 200) {
+      var document = XmlService.parse(response.getContentText());
+      var root = document.getRootElement();
+      if (root.getAttribute("success").getValue() === "true") {
+        return root.getChild("pod").getChild("subpod").getChild("plaintext").getText();
+      }
+    }
+  } catch (f) {}
+  return false;
+}
+
+function TwitterUserTimeLine() {
+  /*
+  Получает все твиты пользователя
+ https://developer.twitter.com/en/docs/tweets/timelines/api-reference/get-statuses-user_timeline.html
+ начиая с определенного твита и старше старее по дате делает ретвит лайк и отвечает
+ count=3 3 твита самый старый будет 0 1 2  твит с инексом 2 будет запомнен в MAX_TWITTER_ID_USER_TIMELINE
+ идекс с 0 не будет ретвичен считаеться что он  уже ретвитнут лайкнут и отвечен
+ 
+  */
+  var props = PropertiesService.getScriptProperties();
+  
+    twit = new Twitterlib.OAuth(props);//авторизация в аккаунт
+  
+  // Encode consumer key and secret
+  var tokenUrl = "https://api.twitter.com/oauth2/token";
+  var tokenCredential = Utilities.base64EncodeWebSafe(
+    props.getProperty("TWITTER_CONSUMER_KEY") + ":" + props.getProperty("TWITTER_CONSUMER_SECRET"));
+  
+  //  Obtain a bearer token with HTTP POST request
+  var tokenOptions = {
+    headers : {
+      Authorization: "Basic " + tokenCredential,
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" 
+    },
+    method: "post",
+    payload: "grant_type=client_credentials"
+  };
+  
+  var responseToken = UrlFetchApp.fetch(tokenUrl, tokenOptions);
+  var parsedToken = JSON.parse(responseToken);
+  var token = parsedToken.access_token;
+  
+  // Authenticate Twitter API requests with the bearer token
+  
+  var apiUrl = "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=aelfblockchain&count=3&include_rts=false&max_id="+props.getProperty("MAX_TWITTER_ID_USER_TIMELINE");
+  //count: колчество твитов
+  //max_id=954298187770036224 ид твитта до которого будет выборка
   //include_rts=false без ретвитов
   var apiOptions = {
     headers : {
@@ -344,11 +648,34 @@ function TwitterUserTimeLine() {
 //      2 потому что последний и при следущем поиске последний не будем печатать i>0
       props.setProperty("MAX_TWITTER_ID_USER_TIMELINE", tweets[tweets.length -1].id_str);
       
-      
+     //if count execute more 5 delete all triggers
+      var count_run= parseInt(props.getProperty("COUNT_EXCUTION"))+1;
+      props.setProperty("COUNT_EXCUTION",count_run); 
+      Logger.log("create triggers TwitterUserTimeLine");
+       Logger.log(props.getProperty("COUNT_EXCUTION"));
+
+      //4 выполниться 5 раз и удалит все триггеры 5 по два ретвита 10
+      if(parseInt(props.getProperty("COUNT_EXCUTION"))>4)
+      {
+        deleteAllTrigger();
+      }
+    
     }
    }
   
   
   Logger.log(result);
+  
+}
+function deleteAllTrigger()
+{
+  var props = PropertiesService.getScriptProperties();
+  Logger.log("del triggers");
+  var triggers = ScriptApp.getProjectTriggers();
+ 
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+  
   
 }
